@@ -3,6 +3,11 @@ import Toast from 'primevue/toast';
 import TreeView from './components/TreeView.vue';
 import { computed, onMounted, ref } from 'vue';
 import Button from 'primevue/button'
+import Splitter from 'primevue/splitter'
+import SplitterPanel from 'primevue/splitterpanel'
+import Tabs from 'primevue/tabs'
+import TabList from 'primevue/tablist'
+import Tab from 'primevue/tab'
 import InputText from 'primevue/inputtext'
 import Dialog from 'primevue/dialog'
 import _ from 'lodash'
@@ -19,6 +24,7 @@ const path = ref('')
 const dialogOpen = ref(false)
 
 const currentValues = ref({})
+const tabs = ref([])
 const newKey = ref('')
 const xxxx = ref<string[]>([])
 const toast = useToast();
@@ -35,7 +41,15 @@ const menu = computed(() => {
 })
 
 onMounted(async () => {
-  jsonData.value = await window.ipcRenderer.invoke('read-dir')
+  const dirs = await window.ipcRenderer.invoke('find-locales-dirs')
+  console.log(dirs);
+  const root = dirs.selectedDir
+  const paths = dirs.localesDirs as string[]
+  tabs.value = paths.map(path => ({
+    title: path.replace(root, '.'),
+    value: path
+  }))
+  jsonData.value = await window.ipcRenderer.invoke('read-dir', paths[0])
 })
 
 const onPathChanged = (p: string) => {
@@ -63,17 +77,10 @@ async function getTranslation(text, target)  {
 }
 
 const copy = () => {
-  const MESSAGE = 'Path copied!'
-  if(path.value && path.value != MESSAGE) {
+  if(path.value) {
     window.ipcRenderer.invoke('clipboard', path.value)
-    const pathBak = path.value.toString();
-    path.value = MESSAGE;
-    setTimeout(() => {
-      path.value = pathBak;
-    }, 2000)
+    toast.add({ severity: 'success', summary: 'Copied!', detail: 'Path was successfully copied to clipboard', life: 3000 });
   }
-
-
 }
 
 function getPathSegments(path: string) {
@@ -136,59 +143,82 @@ const missingKeys = computed(() => {
   )
 })
 
+const changePath = (path: string) => {
+  save().then(async () => {
+    jsonData.value = await window.ipcRenderer.invoke('read-dir', path)
+  })
+}
+
+
 </script>
 
 <template>
-  <div class="window">
+  <Tabs :value="0" scrollable>
+    <TabList>
+      <Tab v-for="(tab, index) in tabs" :key="tab.value" :value="index" @click="() => changePath(tab.value)">
+        {{ tab.title }}
+      </Tab>
+    </TabList>
+  </Tabs>
+  <Splitter class="window" unstyled>
     <Toast />
-    <div class="sidebar">
-      <div>
-        <TreeView
-          :missing-translations="missingKeys"
-          :selected="path"
-          :data="menu"
-          @path="onPathChanged"
-          @right-click="rightClick"
-        />
-      </div>
-      <button
-        class="add"
-        @click="dialogOpen = true"
-      >
-        Add translation
-      </button>
-    </div>
-    <div
-      v-if="path"
-      class="editor"
-    >
-      <div
-        v-for="key in Object.keys(jsonData)"
-        :key="key"
-        class="lang-wrapper"
-      >
-        <div>{{ key }}</div>
-        <div class="input-wrapper">
-          <input
-            :name="key"
-            :value="currentValues[key]"
-            @input="val => currentValues[key] = val.target.value"
-          >
-          <button v-if="currentValues?.en && key !== 'en'" @click="getTranslation(currentValues['en'], key)">Translate</button>
+    <SplitterPanel :size="25" :minSize="10">
+      <div class="sidebar">
+        <div>
+          <TreeView
+            :missing-translations="missingKeys"
+            :selected="path"
+            :data="menu"
+            @path="onPathChanged"
+            @right-click="rightClick"
+          />
         </div>
+        <Button
+          severity="secondary"
+          class="add"
+          @click="dialogOpen = true"
+        >
+          Add translation
+        </Button>
       </div>
-      <button
-        class="save"
-        @click="save(path)"
+    </SplitterPanel>
+    <SplitterPanel :size="75">
+      <div
+        v-if="path"
+        class="editor"
       >
-        Save
-      </button>
-    </div>
+        <div
+          v-for="key in Object.keys(jsonData)"
+          :key="key"
+          class="lang-wrapper"
+        >
+          <div>{{ key }}</div>
+          <div class="input-wrapper">
+            <input
+              :name="key"
+              :value="currentValues[key]"
+              @input="val => currentValues[key] = val.target.value"
+            >
+            <Button severity="secondary" v-if="currentValues?.en && key !== 'en'" @click="getTranslation(currentValues['en'], key)">Translate</Button>
+          </div>
+        </div>
+        <Button
+          severity="secondary"
+          class="save"
+          @click="save(path)"
+        >
+          Save
+        </Button>
+      </div>
+    </SplitterPanel>
+  </Splitter>
+
+
     <ContextMenu
       ref="ctxmenu"
       :model="ctxitems"
     />
-  </div>
+
 
   <div
     class="path-wrapper"
@@ -209,9 +239,13 @@ const missingKeys = computed(() => {
       style="width: 100%"
     >
       <InputText
+        autofocus
         v-model="newKey"
         style="width: 100%"
         autocomplete="off"
+        @keyup.enter="() => {
+          !!newKey && addNewKey()
+        }"
       />
     </div>
     <div class="flex justify-end gap-2">
@@ -227,6 +261,7 @@ const missingKeys = computed(() => {
 </template>
 
 <style scoped lang="scss">
+$tabsHeight: 47px;
 $pathHeight: 30px;
 .window {
   display: flex;
@@ -234,7 +269,7 @@ $pathHeight: 30px;
 
 .editor {
   flex-grow: 1;
-  height: calc(100vh - $pathHeight);
+  height: calc(100vh - $pathHeight - $tabsHeight);
   overflow: auto;
 }
 
@@ -250,8 +285,8 @@ $pathHeight: 30px;
 
 .sidebar {
   padding: 10px;
-  height: calc(100vh - $pathHeight);
-  width: 50%;
+  height: calc(100vh - $pathHeight - $tabsHeight);
+  width: 100%;
   overflow: auto;
   background-color: rgba(255, 255, 255, 0.06);
 }

@@ -131,6 +131,8 @@ ul ul {
   color: #5b5b5b;
   line-height: 10px;
   font-size: 27px;
+  position: relative;
+  z-index: -1;
 }
 .empty {
   padding-left: 20px;

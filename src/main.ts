@@ -1,6 +1,6 @@
 import { createApp } from 'vue'
 import PrimeVue from 'primevue/config';
-import Aura from '@primevue/themes/aura';
+import Aura from '@primeuix/themes/aura';
 import ToastService from 'primevue/toastservice';
 import App from './App.vue'
 
@@ -14,12 +14,11 @@ createApp(App)
   .use(PrimeVue, {
     theme: {
       preset: Aura,
-      // options: {
-      //   cssLayer: {
-      //     name: 'primevue',
-      //     order: 'tailwind-base, primevue, tailwind-utilities'
-      //   }
-      // }
+      options: {
+        prefix: 'p',
+        darkModeSelector: 'system',
+        cssLayer: false
+      }
     }
   })
   .use(ToastService)

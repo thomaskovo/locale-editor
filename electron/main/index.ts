@@ -1,4 +1,4 @@
-import { app, BrowserWindow, shell, ipcMain, clipboard, dialog } from 'electron'
+import { app, BrowserWindow, shell, ipcMain, clipboard } from 'electron'
 import { createRequire } from 'node:module'
 import { fileURLToPath } from 'node:url'
 import path from 'node:path'
@@ -6,6 +6,8 @@ import os from 'node:os'
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { TargetLanguageCode } from 'deepl-node';
 import * as deepl from 'deepl-node';
+import {findLocalesPaths} from './findLocalesDirs';
+import {createAppMenu} from './createAppMenu';
 
 const require = createRequire(import.meta.url)
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -66,6 +68,7 @@ async function createWindow() {
       // contextIsolation: false,
     },
   })
+  createAppMenu(win)
 
   if (VITE_DEV_SERVER_URL) { // #298
     win.loadURL(VITE_DEV_SERVER_URL)
@@ -129,32 +132,12 @@ ipcMain.handle('open-win', (_, arg) => {
   }
 })
 
-// ipcMain.handle('read-dir', async (_event, ...args) => {
-//
-//   const files = await readdir(localesDir)
-//
-//   // console.log(files);
-//   console.log("\nCurrent directory filenames:");
-//   // console.log(__dirname);
-//   const result = {}
-//   for(const i in files) {
-//     const buffer = await readFile(localesDir + '/' + files[i], { encoding: 'utf8' })
-//     result[files[i].split('.')[0]] = JSON.parse(buffer.trim())
-//   }
-//   // console.log(result);
-//   return result
-// })
-ipcMain.handle("read-dir", async (_event, ...args) => {
+findLocalesPaths()
+
+ipcMain.handle("read-dir", async (_event, targetPath: string) => {
   // Show a dialog to let the user pick a directory
-  const { filePaths, canceled } = await dialog.showOpenDialog({
-    properties: ["openDirectory"],
-  });
 
-  if (canceled || filePaths.length === 0) {
-    return { error: "No directory selected" };
-  }
-
-  const selectedDir = filePaths[0];
+  const selectedDir = targetPath
 
   try {
     localesDir = selectedDir
