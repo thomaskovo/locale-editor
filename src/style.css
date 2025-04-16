@@ -77,11 +77,11 @@ body {
 /*  flex-direction: column;*/
 /*}*/
 
-/*.missing strong, .missing em {*/
-/*  text-decoration-line: underline;*/
-/*  text-decoration-style: wavy;*/
-/*  text-decoration-color: red;*/
-/*}*/
+.missing strong, .missing em {
+  text-decoration-line: underline;
+  text-decoration-style: wavy;
+  text-decoration-color: red;
+}
 
 /*@media (prefers-color-scheme: light) {*/
 /*  :root {*/
