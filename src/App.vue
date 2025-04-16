@@ -26,7 +26,6 @@ const dialogOpen = ref(false)
 const currentValues = ref({})
 const tabs = ref([])
 const newKey = ref('')
-const xxxx = ref<string[]>([])
 const toast = useToast();
 
 const showWarn = () => {
@@ -79,6 +78,7 @@ async function getTranslation(text, target)  {
 const copy = () => {
   if(path.value) {
     window.ipcRenderer.invoke('clipboard', path.value)
+    console.log('aaaaa');
     toast.add({ severity: 'success', summary: 'Copied!', detail: 'Path was successfully copied to clipboard', life: 3000 });
   }
 }
@@ -153,6 +153,7 @@ const changePath = (path: string) => {
 </script>
 
 <template>
+  <Toast />
   <Tabs :value="0" scrollable>
     <TabList>
       <Tab v-for="(tab, index) in tabs" :key="tab.value" :value="index" @click="() => changePath(tab.value)">
@@ -161,7 +162,6 @@ const changePath = (path: string) => {
     </TabList>
   </Tabs>
   <Splitter class="window" unstyled>
-    <Toast />
     <SplitterPanel :size="25" :minSize="10">
       <div class="sidebar">
         <div>
@@ -222,9 +222,10 @@ const changePath = (path: string) => {
 
   <div
     class="path-wrapper"
-
   >
-    <div @click="copy">{{ path }}</div>
+    <div @click="copy">
+      <i class="pi pi-clipboard" style="font-size: 0.8rem"></i>
+      {{ path }}</div>
   </div>
 
   <Dialog
