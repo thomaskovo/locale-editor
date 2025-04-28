@@ -33,7 +33,8 @@
             :key="a"
             class="tree"
           >┃</span>
-          <span class="tree">{{ Object.keys(data).length - 1 === i && !isOpen[`${prefix ? prefix + '.':''}${key}`]? '┗' : '┣' }}</span>
+          <span class="tree"
+          >{{ Object.keys(data).length - 1 === i && !isOpen[`${prefix ? prefix + '.' : ''}${key}`] ? '┗' : '┣' }}</span>
         </template>
         &nbsp;
         <strong v-if="isObject(value)">{{ key }}</strong><em v-else>{{ key }}</em>
@@ -58,8 +59,8 @@
 </template>
 
 <script setup lang="ts">
-import { PrimeIcons } from '@primevue/core/api';
-import { ref } from 'vue';
+import {PrimeIcons} from '@primevue/core/api';
+import {ref, watch} from 'vue';
 
 defineProps<{
   prefix?: string
@@ -68,14 +69,23 @@ defineProps<{
   missingTranslations: string[]
 }>()
 
-const isOpen = ref<Record<string, boolean>>({})
+const loadIsOpenState = () => {
+  const stored = sessionStorage.getItem('treeViewOpen')
+  return stored ? JSON.parse(stored) : {}
+}
+
+const isOpen = ref<Record<string, boolean>>(loadIsOpenState())
+
+watch(isOpen, (newValue) => {
+  sessionStorage.setItem('treeViewOpen', JSON.stringify(newValue))
+}, {deep: true})
 
 const toggleOpen = (key: string) => {
   console.log(key);
   isOpen.value[key] = !isOpen.value[key]
 }
 
-const emit = defineEmits(['path','rightClick'])
+const emit = defineEmits(['path', 'rightClick'])
 
 const isObject = (value: unknown) => {
   return typeof value === 'object' && value !== null;
@@ -87,8 +97,16 @@ const navigate = (key: string) => {
 
 const onRightClick = (e: PointerEvent, key: string, showAdd: boolean) => {
   emit('rightClick', e, [
-    ...(showAdd ? [{ label: 'Add here', icon: PrimeIcons.PLUS }] : []),
-    { label: 'Detele', icon: PrimeIcons.TRASH }
+    ...(showAdd ? [
+      {
+        label: 'Add here',
+        icon: PrimeIcons.PLUS
+      }] : []),
+    {
+      label: 'Rename',
+      icon: PrimeIcons.PENCIL
+    },
+    {label: 'Detele', icon: PrimeIcons.TRASH}
   ], key)
 }
 </script>
@@ -105,12 +123,15 @@ const onRightClick = (e: PointerEvent, key: string, showAdd: boolean) => {
   min-width: 200px;
   cursor: pointer;
   text-wrap: nowrap;
+
   &:hover {
     background-color: rgba(255, 255, 255, 0.09);
   }
+
   &:has(.empty) {
     pointer-events: none;
   }
+
   &.active {
     outline: thin solid;
   }
@@ -134,6 +155,7 @@ ul ul {
   position: relative;
   z-index: -1;
 }
+
 .empty {
   padding-left: 20px;
   opacity: 0.3;

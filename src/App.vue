@@ -22,10 +22,12 @@ const ctxmenu = ref()
 const ctxitems = ref<any[]>([])
 const path = ref('')
 const dialogOpen = ref(false)
+const renameDialogOpen = ref(false)
 
 const currentValues = ref({})
 const tabs = ref([])
 const newKey = ref('')
+const oldKey = ref('')
 const toast = useToast();
 
 const showWarn = () => {
@@ -78,7 +80,6 @@ async function getTranslation(text, target)  {
 const copy = () => {
   if(path.value) {
     window.ipcRenderer.invoke('clipboard', path.value)
-    console.log('aaaaa');
     toast.add({ severity: 'success', summary: 'Copied!', detail: 'Path was successfully copied to clipboard', life: 3000 });
   }
 }
@@ -109,13 +110,42 @@ const addNewKey = () => {
   dialogOpen.value = false
 }
 
+const renameKey = () => {
+  if (_.has(menu.value, newKey.value)) {
+    showWarn()
+  }
+    const newData = JSON.parse(JSON.stringify(jsonData.value))
+    Object.keys(newData).map((lang: string) => {
+      // Add the language prefix to both the old and new keys
+      const oldKeyWithLang = `${lang}.${oldKey.value}`;
+      const newKeyWithLang = `${lang}.${newKey.value}`;
+      const oldValue = _.get(newData, oldKeyWithLang);
+
+      if (oldValue !== undefined) {
+        _.set(newData, newKeyWithLang, oldValue);
+        _.unset(newData, oldKeyWithLang);
+      }
+      jsonData.value = newData
+    });
+    save()
+    renameDialogOpen.value = false
+    toast.add({ severity: 'success', summary: 'Success', detail: 'Path was renamed successfully', life: 3000 });
+
+}
+
 const rightClick= (e: PointerEvent, items: any[], key: string) => {
-  console.log(items, key);
   ctxitems.value = items.map(item => {
     if (item.icon === PrimeIcons.PLUS) {
       item.command = () => {
         newKey.value = key+'.'
         dialogOpen.value = true
+      }
+    }
+    if (item.icon === PrimeIcons.PENCIL) {
+      item.command = () => {
+        oldKey.value = key
+        newKey.value = key
+        renameDialogOpen.value = true
       }
     }
     if (item.icon === PrimeIcons.TRASH) {
@@ -194,11 +224,11 @@ const changePath = (path: string) => {
         >
           <div>{{ key }}</div>
           <div class="input-wrapper">
-            <input
+            <InputText
               :name="key"
               :value="currentValues[key]"
               @input="val => currentValues[key] = val.target.value"
-            >
+            />
             <Button severity="secondary" v-if="currentValues?.en && key !== 'en'" @click="getTranslation(currentValues['en'], key)">Translate</Button>
           </div>
         </div>
@@ -256,6 +286,56 @@ const changePath = (path: string) => {
         label="Save"
         severity="secondary"
         @click="addNewKey"
+      />
+    </div>
+  </Dialog>
+
+<!--  RENBAME DIALOG -->
+  <Dialog
+    v-model:visible="renameDialogOpen"
+    modal
+    header="Rename path"
+    :style="{ width: '50rem' }"
+    @hide="() => {
+      newKey = ''
+      oldKey = ''
+    }"
+  >
+    <div
+      class="flex flex-col items-center gap-4 mb-4 "
+      style="width: 100%"
+    >
+      <div class="w-full">
+        <label>Old path</label>
+        <InputText
+          autofocus
+          :model-value="oldKey"
+          style="width: 100%"
+          autocomplete="off"
+          class="pb-2"
+          disabled
+        />
+      </div>
+      <div class="w-full">
+        <label>New path</label>
+        <InputText
+          autofocus
+          v-model="newKey"
+          style="width: 100%"
+          autocomplete="off"
+          @keyup.enter="() => {
+          !!newKey && renameKey()
+        }"
+        />
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <Button
+        style="width: 100%; margin-top: 20px"
+        type="button"
+        label="Rename"
+        severity="secondary"
+        @click="renameKey"
       />
     </div>
   </Dialog>
