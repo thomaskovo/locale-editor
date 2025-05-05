@@ -53,12 +53,41 @@ onMounted(async () => {
   jsonData.value = await window.ipcRenderer.invoke('read-dir', paths[0])
 })
 
+const formatString = (str?: string) => {
+  if (!str) {
+    return '';
+  }
+  // Handle the case for 'id' and 'Id'
+  if (str === 'id' || str === 'Id') {
+    return 'ID';
+  }
+
+  // Detect if the string is camelCase
+  if (_.camelCase(str) === str) {
+    // If it's camelCase, convert to regular words
+    return _.startCase(str);
+  }
+
+  // Detect if the string is snake_case
+  if (str.includes('_')) {
+    // If it's snake_case, convert to regular words
+    return _.startCase(_.camelCase(str));
+  }
+
+  // If it's neither, just return the original string
+  return str;
+}
+
 const onPathChanged = (p: string) => {
   path.value = p
   Object.keys(jsonData.value).forEach(lang => {
     currentValues.value[lang] = _.get(jsonData.value, lang + '.' + p)
   })
-
+  console.log(currentValues.value?.['en']);
+  if (!currentValues.value?.['en']) {
+    const lastPart = _.last(p.split('.')) || '';
+    currentValues.value['en'] = formatString(lastPart)
+  }
 }
 
 async function save(p?: string) {
