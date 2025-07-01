@@ -6,7 +6,7 @@ import {dialog, ipcMain} from 'electron'
 async function findLocalesDirs(dir: string, results: string[] = []): Promise<string[]> {
   const entries = await readdir(dir, { withFileTypes: true });
 
-  const defaultExcludes = ['node_modules', '.git', 'dist', 'build'];
+  const defaultExcludes = ['node_modules', '.git', 'dist', 'build', 'libs'];
 
   for (const entry of entries) {
     const fullPath = path.join(dir, entry.name);

@@ -6,6 +6,8 @@ import os from 'node:os'
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { TargetLanguageCode } from 'deepl-node';
 import * as deepl from 'deepl-node';
+import { HttpProxyAgent } from 'http-proxy-agent';
+import { translate } from 'google-translate-api-x';
 import {findLocalesPaths} from './findLocalesDirs';
 import {createAppMenu} from './createAppMenu';
 
@@ -140,6 +142,7 @@ ipcMain.handle("read-dir", async (_event, targetPath: string) => {
 
   try {
     localesDir = selectedDir
+    console.log(selectedDir);
     const files = await readdir(selectedDir);
     console.log("\nSelected directory filenames:", files);
 
@@ -181,7 +184,20 @@ const translator = new deepl.Translator('1bb88612-f544-4fd8-b2b6-f728b33c1282:fx
 
 ipcMain.handle('translate', async (_event, json: string) => {
   const { text, target } = JSON.parse(json)
-  const res = await translator.translateText(text, 'en', target as TargetLanguageCode)
+  let res
+  try {
+    res = await translator.translateText(text, 'en', target as TargetLanguageCode)
+
+  } catch (e) {
+    console.log('Trying with google');
+    try {
+      res = await translate(text, { from:'en', to: target });
+    } catch {
+      const agent = new HttpProxyAgent('http://81.169.213.169:8888');
+      res = await translate(text, { from:'en', to: target, fetchOptions: { agent } });
+    }
+  }
+  console.log(res);
   return res
 
 })

@@ -3,6 +3,7 @@ import Toast from 'primevue/toast';
 import TreeView from './components/TreeView.vue';
 import { computed, onMounted, ref } from 'vue';
 import Button from 'primevue/button'
+import Textarea from 'primevue/textarea'
 import Splitter from 'primevue/splitter'
 import SplitterPanel from 'primevue/splitterpanel'
 import Tabs from 'primevue/tabs'
@@ -21,12 +22,14 @@ const jsonData = ref({})
 const ctxmenu = ref()
 const ctxitems = ref<any[]>([])
 const path = ref('')
+const pathBlocks = computed(() => path.value.split('.'))
 const dialogOpen = ref(false)
 const renameDialogOpen = ref(false)
 
 const currentValues = ref({})
 const tabs = ref([])
 const newKey = ref('')
+const jsonNewKeysValues = ref('')
 const oldKey = ref('')
 const toast = useToast();
 
@@ -106,10 +109,17 @@ async function getTranslation(text, target)  {
   currentValues.value[target] = result.text
 }
 
-const copy = () => {
+async function translateAll() {
+  Object.keys(jsonData.value).forEach(key => {
+    getTranslation(currentValues.value['en'], key)
+  })
+
+}
+
+const copy = (block?: string) => {
   if(path.value) {
-    window.ipcRenderer.invoke('clipboard', path.value)
-    toast.add({ severity: 'success', summary: 'Copied!', detail: 'Path was successfully copied to clipboard', life: 3000 });
+    window.ipcRenderer.invoke('clipboard', block || path.value)
+    toast.add({ severity: 'success', summary: 'Copied!', detail: `Path${block ? ' segment' : ''} was successfully copied to clipboard`, life: 3000 });
   }
 }
 
@@ -132,7 +142,25 @@ const addNewKey = () => {
       const target = document.querySelector(`[data-path="${p}"][data-active="false"]`)
       if (target) {
         target.click()
-        target.scrollIntoView({ behavior: 'smooth' });
+        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+        if (jsonNewKeysValues.value) {
+          try {
+            const translations = JSON.parse(jsonNewKeysValues.value)
+
+            save()
+            setTimeout(() => {
+              Object.keys(jsonData.value).forEach(langKey => {
+                currentValues.value[langKey] = translations[langKey] || ''
+              })
+              jsonNewKeysValues.value = ""
+            }, 100)
+
+          } catch {
+            console.warn('invalid json')
+          }
+        }
+
       }
     }, 100)
   })
@@ -142,25 +170,40 @@ const addNewKey = () => {
 const renameKey = () => {
   if (_.has(menu.value, newKey.value)) {
     showWarn()
+    return
   }
-    const newData = JSON.parse(JSON.stringify(jsonData.value))
-    Object.keys(newData).map((lang: string) => {
-      // Add the language prefix to both the old and new keys
-      const oldKeyWithLang = `${lang}.${oldKey.value}`;
-      const newKeyWithLang = `${lang}.${newKey.value}`;
-      const oldValue = _.get(newData, oldKeyWithLang);
 
-      if (oldValue !== undefined) {
+  const newData = JSON.parse(JSON.stringify(jsonData.value))
+  Object.keys(newData).forEach((lang: string) => {
+    // Add the language prefix to both the old and new keys
+    const oldKeyWithLang = `${lang}.${oldKey.value}`;
+    const newKeyWithLang = `${lang}.${newKey.value}`;
+    const oldValue = _.get(newData, oldKeyWithLang);
+
+    if (oldValue !== undefined) {
+      const existingValue = _.get(newData, newKeyWithLang);
+
+      _.unset(newData, oldKeyWithLang);
+
+      // If both are objects, merge
+      if (_.isPlainObject(oldValue) && _.isPlainObject(existingValue)) {
+        _.set(newData, newKeyWithLang, _.merge({}, existingValue, oldValue));
+      } else {
         _.set(newData, newKeyWithLang, oldValue);
-        _.unset(newData, oldKeyWithLang);
       }
-      jsonData.value = newData
-    });
-    save()
-    renameDialogOpen.value = false
-    toast.add({ severity: 'success', summary: 'Success', detail: 'Path was renamed successfully', life: 3000 });
+    }
+  });
 
-}
+  jsonData.value = newData;
+  save();
+  renameDialogOpen.value = false;
+  toast.add({
+    severity: 'success',
+    summary: 'Success',
+    detail: 'Path was renamed successfully',
+    life: 3000
+  });
+};
 
 const rightClick= (e: PointerEvent, items: any[], key: string) => {
   ctxitems.value = items.map(item => {
@@ -261,13 +304,23 @@ const changePath = (path: string) => {
             <Button severity="secondary" v-if="currentValues?.en && key !== 'en'" @click="getTranslation(currentValues['en'], key)">Translate</Button>
           </div>
         </div>
-        <Button
-          severity="secondary"
-          class="save"
-          @click="save(path)"
-        >
-          Save
-        </Button>
+        <div class="flex bottom-buttons">
+          <Button
+            severity="secondary"
+            class="save"
+            @click="save(path)"
+          >
+            Save
+          </Button>
+          <Button
+            v-if="currentValues?.en"
+            severity="secondary"
+            class="save"
+            @click="translateAll()"
+          >
+            Translate all
+          </Button>
+        </div>
       </div>
     </SplitterPanel>
   </Splitter>
@@ -282,9 +335,10 @@ const changePath = (path: string) => {
   <div
     class="path-wrapper"
   >
-    <div @click="copy">
+    <div @click="copy()">
       <i class="pi pi-clipboard" style="font-size: 0.8rem"></i>
-      {{ path }}</div>
+      <template v-for="(block, i) in pathBlocks"><span class="path-block" @click.stop="copy(block)">{{block}}</span><template v-if="i < (pathBlocks.length-1)">.</template></template>
+    </div>
   </div>
 
   <Dialog
@@ -306,6 +360,16 @@ const changePath = (path: string) => {
         @keyup.enter="() => {
           !!newKey && addNewKey()
         }"
+      />
+    </div>
+    <div
+      class="flex items-center gap-4 mb-4 w-full"
+    >
+      <Textarea
+        placeholder="Enter JSON with values"
+        auto-resize
+        class="w-full"
+        v-model="jsonNewKeysValues"
       />
     </div>
     <div class="flex justify-end gap-2">
@@ -371,7 +435,7 @@ const changePath = (path: string) => {
 </template>
 
 <style scoped lang="scss">
-$tabsHeight: 47px;
+$tabsHeight: 35px;
 $pathHeight: 30px;
 .window {
   display: flex;
@@ -393,6 +457,10 @@ $pathHeight: 30px;
   }
 }
 
+.p-tab {
+  padding: 5px 8px;
+}
+
 .sidebar {
   padding: 10px;
   height: calc(100vh - $pathHeight - $tabsHeight);
@@ -409,10 +477,13 @@ $pathHeight: 30px;
     width: calc(100% - 10px);
   }
 }
-button {
+.bottom-buttons {
   font-size: 12px;
   position:sticky;
-  bottom: 0;
+  bottom: 1px;
+  background: #1212124a;
+  backdrop-filter: blur(10px);
+  border-top: solid thin rgba(255, 255, 255, 0.06);
 }
 button.add {
   width: 100%;
@@ -425,6 +496,17 @@ button.save {
 
 .input-wrapper {
   display: flex;
+}
+
+.path-block {
+  line-height: $pathHeight;
+  &:hover {
+    padding: 2px 5px;
+    margin: -2px -5px;
+    background: rgba(52, 211, 153, 0.3);
+    border-radius: 4px;
+
+  }
 }
 
 </style>
