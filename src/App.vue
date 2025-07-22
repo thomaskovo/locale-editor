@@ -337,7 +337,12 @@ const changePath = (path: string) => {
   >
     <div @click="copy()">
       <i class="pi pi-clipboard" style="font-size: 0.8rem"></i>
-      <template v-for="(block, i) in pathBlocks"><span class="path-block" @click.stop="copy(block)">{{block}}</span><template v-if="i < (pathBlocks.length-1)">.</template></template>
+      <span class="path-blocks">
+        <template v-for="(block, i) in pathBlocks">
+          <span class="path-block" @click.stop="copy(block)">{{ block }}</span>
+          <template v-if="i < (pathBlocks.length-1)">.</template>
+        </template>
+      </span>
     </div>
   </div>
 
@@ -454,6 +459,13 @@ $pathHeight: 30px;
   display: flex;
   > div:first-child {
     flex-grow: 1
+  }
+  &:hover .path-blocks {
+    cursor: pointer;
+    padding: 2px 5px;
+    margin: -2px -5px;
+    background: rgba(52, 211, 153, 0.3);
+    border-radius: 4px;
   }
 }
 
