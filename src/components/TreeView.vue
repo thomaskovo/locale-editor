@@ -21,7 +21,7 @@
     <div
       :data-active="!!isOpen[`${prefix ? prefix + '.' : ''}${key}`]"
       :data-path="`${prefix ? prefix + '.' : ''}${key}`"
-      :class="{active: !isObject(value) && selected === `${prefix ? prefix + '.':''}${key}`, missing: missingTranslations.find(mt => mt.startsWith(`${prefix ? prefix + '.':''}${key}`))}"
+      :class="{active: !isObject(value) && selected === `${prefix ? prefix + '.':''}${key}`, missing: missingTranslations.find(mt => mt.split('.').includes(key))}"
       class="section-title"
       @click="isObject(value) ? toggleOpen(`${prefix ? prefix + '.':''}${key}`) : undefined"
       @contextmenu="onRightClick($event,`${prefix ? prefix + '.':''}${key}`, isObject(value))"
