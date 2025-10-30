@@ -21,7 +21,10 @@
     <div
       :data-active="!!isOpen[`${prefix ? prefix + '.' : ''}${key}`]"
       :data-path="`${prefix ? prefix + '.' : ''}${key}`"
-      :class="{active: !isObject(value) && selected === `${prefix ? prefix + '.':''}${key}`, missing: missingTranslations.find(mt => mt.split('.').includes(key))}"
+      :class="{active: !isObject(value) && selected === `${prefix ? prefix + '.':''}${key}`, missing: missingTranslations.find(mt =>{
+
+        return mt.split('.').includes(key) && mt.startsWith(`${prefix ? prefix + '.':''}${key}`);
+      })}"
       class="section-title"
       @click="isObject(value) ? toggleOpen(`${prefix ? prefix + '.':''}${key}`) : undefined"
       @contextmenu="onRightClick($event,`${prefix ? prefix + '.':''}${key}`, isObject(value))"
@@ -105,6 +108,10 @@ const onRightClick = (e: PointerEvent, key: string, showAdd: boolean) => {
     {
       label: 'Rename',
       icon: PrimeIcons.PENCIL
+    },
+    {
+      label: 'Duplicate',
+      icon: PrimeIcons.CLONE
     },
     {label: 'Detele', icon: PrimeIcons.TRASH}
   ], key)

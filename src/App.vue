@@ -25,6 +25,7 @@ const path = ref('')
 const pathBlocks = computed(() => path.value.split('.'))
 const dialogOpen = ref(false)
 const renameDialogOpen = ref(false)
+const cloneDialogOpen = ref(false)
 
 const currentValues = ref({})
 const tabs = ref([])
@@ -205,6 +206,42 @@ const renameKey = () => {
   });
 };
 
+const cloneKey = () => {
+  if (_.has(menu.value, newKey.value)) {
+    showWarn()
+    return
+  }
+
+  const newData = JSON.parse(JSON.stringify(jsonData.value))
+  Object.keys(newData).forEach((lang: string) => {
+    // Add the language prefix to both the old and new keys
+    const oldKeyWithLang = `${lang}.${oldKey.value}`;
+    const newKeyWithLang = `${lang}.${newKey.value}`;
+    const oldValue = _.get(newData, oldKeyWithLang);
+
+    if (oldValue !== undefined) {
+      const existingValue = _.get(newData, newKeyWithLang);
+
+      // If both are objects, merge
+      if (_.isPlainObject(oldValue) && _.isPlainObject(existingValue)) {
+        _.set(newData, newKeyWithLang, _.merge({}, existingValue, oldValue));
+      } else {
+        _.set(newData, newKeyWithLang, oldValue);
+      }
+    }
+  });
+
+  jsonData.value = newData;
+  save();
+  cloneDialogOpen.value = false;
+  toast.add({
+    severity: 'success',
+    summary: 'Success',
+    detail: 'Path was cloned successfully',
+    life: 3000
+  });
+};
+
 const rightClick= (e: PointerEvent, items: any[], key: string) => {
   ctxitems.value = items.map(item => {
     if (item.icon === PrimeIcons.PLUS) {
@@ -218,6 +255,13 @@ const rightClick= (e: PointerEvent, items: any[], key: string) => {
         oldKey.value = key
         newKey.value = key
         renameDialogOpen.value = true
+      }
+    }
+    if (item.icon === PrimeIcons.CLONE) {
+      item.command = () => {
+        oldKey.value = key
+        newKey.value = key
+        cloneDialogOpen.value = true
       }
     }
     if (item.icon === PrimeIcons.TRASH) {
@@ -434,6 +478,56 @@ const changePath = (path: string) => {
         label="Rename"
         severity="secondary"
         @click="renameKey"
+      />
+    </div>
+  </Dialog>
+
+  <!--  CLONE DIALOG -->
+  <Dialog
+    v-model:visible="cloneDialogOpen"
+    modal
+    header="Duplicate translations"
+    :style="{ width: '50rem' }"
+    @hide="() => {
+      newKey = ''
+      oldKey = ''
+    }"
+  >
+    <div
+      class="flex flex-col items-center gap-4 mb-4 "
+      style="width: 100%"
+    >
+      <div class="w-full">
+        <label>Old path</label>
+        <InputText
+          autofocus
+          v-model.trim="oldKey"
+          style="width: 100%"
+          autocomplete="off"
+          class="pb-2"
+        />
+      </div>
+      <div class="w-full">
+        <label>New path</label>
+        <InputText
+          autofocus
+          v-model.trim="newKey"
+          style="width: 100%"
+          autocomplete="off"
+          @keyup.enter="() => {
+          !!newKey && cloneKey()
+        }"
+        />
+      </div>
+    </div>
+    <div class="flex justify-end gap-2">
+      <Button
+        style="width: 100%; margin-top: 20px"
+        type="button"
+        label="Clone"
+        severity="secondary"
+        :disabled="newKey === oldKey"
+        @click="cloneKey"
       />
     </div>
   </Dialog>
